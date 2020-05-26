@@ -1,0 +1,1534 @@
+ 1300 ; (Current loading address)
+
+;-------------------DESCRIPTION---------------------
+; The following source was created in order
+; to fully test the capabilities of the 
+; the wall breaker routine written by
+; Ekram Bhuiyan. Note that memory is allocated 
+; by a little endian paradigm. This means that
+; if one were to store 1 in ADR 0, it would appear
+; in memory as (0b 0001 0000 0000)
+
+;-----------REGISTER DOCUMENTATION-----------------
+; ADR 0 stores the pattern table
+
+; Let ADR 2 stores the return address of the 
+; shoot routine. ADR 4 stores the return 
+; address of the twelve bit two's complement routine
+; ADR 3 stores the return address of the Erase
+; Obstacle routine. ADR 3 is used again in the 
+; refresh routine but by then, there is no need to
+; save the return address of the erase obstacle
+; routine. ADR 1 stores the return address
+; of the erase routine
+
+; ADR 3 store the return address of the obstacle
+; generator
+
+; ADR 4 stores the return address of the twelve
+; bit two's complement routine
+
+; ADR 5 stores a temp version of the pattern
+; table
+
+; D3 and D4 store arguments to be used in a 
+; routine 
+
+; Let D5 store the state of the user
+
+; DO is used in the shoot routine
+;---------------------------------------------------
+
+;----------------RAM documentation------------------
+; Let address 42 store a counter that is to be
+; used in the obstacle generator routine
+
+; Let mem[35] store a boolean (0 == True & 
+; !=0 == False)
+
+; Let mem[32] store zero
+
+; Let mem[37] store a multiplexor nibble
+
+;--------------------------------------------------
+
+;---------------Variable Initialization------------
+; Let the message "Press 0" be displayed onto the Screen
+  LDI 4050
+  LAI 1
+  SAD
+  LDI 4051
+  LAI 5 ;P
+  SAD
+  LDI 4052
+  LAI 0
+  SAD
+
+  LDI 4050
+  LAI 1
+  SAD
+  LDI 4051
+  LAI 7 ;R
+  SAD
+  LDI 4052
+  LAI 1
+  SAD
+
+  LDI 4050
+  LAI 0
+  SAD
+  LDI 4051
+  LAI 4 ; E
+  SAD
+  LDI 4052
+  LAI 2 
+  SAD
+
+  LDI 4050
+  LAI 1
+  SAD
+  LDI 4051
+  LAI 8 ;S
+  SAD
+  LDI 4052
+  LAI 3
+  SAD
+
+  LDI 4050
+  LAI 1
+  SAD
+  LDI 4051
+  LAI 8 ;S
+  SAD
+  LDI 4052
+  LAI 4
+  SAD
+
+  LDI 4050
+  LAI 3
+  SAD
+  LDI 4051
+  LAI 5 ;0
+  SAD
+  LDI 4052
+  LAI 6
+  SAD
+  
+LSTART:
+  NOP2
+  LDI 4060
+  LAD
+  JZ LSTART
+  
+  LDI 4061
+  LAD
+  JN LSTART ; If the char code is not zero, return to the loop and do
+            ; not blank out the screen
+  LDI 4050
+  LAI 6
+  SAD
+  LDI 4051  ; Blank out the screen 
+  LAI 3 
+  SAD
+  LDI 4052 
+  LAI 0
+  SAD
+  LAI 1
+  SAD
+  LAI 2
+  SAD
+  LAI 3
+  SAD
+  LAI 4
+  SAD
+  LAI 6
+  SAD
+  
+  LDI 20
+  SDR 3
+  LDI 0
+  SDR 7
+  LDI 200
+  SDR 5
+;-----------LOOP to create pattern table----------   
+PTRNL:
+  LDI RGENER
+  XPD
+  LDR 5
+  SAD
+  
+  LDI TBTC
+  XPD
+  
+  LDI 30
+  LAD
+  JZ IFZ1 ;(If zero 1)
+  LDR 7
+  IDP
+  SDR 7 ; Increment number to be subtracted from 20
+  LDR 5
+  IDP
+  SDR 5 ;Increment pattern table
+  LDI PTRNL
+  XPD
+
+IFZ1: ; (If zero 1 code)
+  LDI 29
+  LAD
+  JZ IFZ2 ; (If zero 2) 
+  LDR 7
+  IDP   
+  SDR 7 ;Increment number to be subtracted from 30
+  LDR 5 
+  IDP
+  SDR 5 ;Increment pattern table
+  LDI PTRNL
+  XPD
+IFZ2: ;(If zero 2 code)
+  LDI 0
+  SDR 5
+  SDR 0
+  SDR 7
+ 
+  LDI FINISH
+  XPD
+;-----------------------------------------------  
+FINISH:  
+  LDI 200 ; Storing the pattern table into ADR 0
+  SDR 0
+
+  LDI 32
+  LAI 0
+  SAD
+
+  LDI 42
+  LAI 0 ; Storing zero in the main routine
+  SAD
+
+  LAI 4
+  SAR 5 ; Storing the initial state of the user
+        ; In data register 
+
+  LDI 35
+  LAI 1 ; Storing the boolean in address 35 
+  SAD
+
+  LDR 0
+  SDR 5
+  
+  LDI 37
+  LAI 0
+  SAD
+;------------------------------------------------------
+
+;---------------- MAIN ROUTINE-------------------------
+;------------------------------------------------------
+  LDI 4055 ; Writing the pixel into column 0
+  LAI 0    
+  SAD
+  LDI 4056
+  SAD
+
+  LDI WBGET ; Using the WBGet routine to return
+  XPD       ; the MSN and LSN of the pattern column
+  LAR 3     ; coresponding to the state. These numbers
+  LDI 4057  ; are stored in DR 3 & DR 4
+  SAD
+  LAR 4
+  LDI 4058
+  SAD
+               
+  LDI OBTLC ; Call the obstacle generator function to generate
+  XPD          ; walls to shoot at
+START:
+  LDI 4060
+L1:
+  LAD
+  JZ L1
+
+  LDI 4061 ; Note that by requesting for the value stored in ADR 4061,
+  LAD      ; ADR 4060 is set to zero
+  
+  COM
+  CLF
+  IAC
+  JT DOWN1 ; Determine which "valid key was pressed
+  IAC      ; and if said key was pressed, jump to a particular
+  JT UP1   ; part in the code. Otherwise, return to the START
+  IAC      ; label and wait for another key press to occur
+  JT SHOOT
+  JMP START
+
+UP1:
+  LDI UP2
+  XPD
+DOWN1:
+  LDI DOWN2
+  XPD
+
+SHOOT: 
+  LDI WBGET ; Calling the WBGet routine so as to return 
+  XPD       ; the MSN and LSN of the pattern column corresponding
+  LAR 3     ; to the sprite's current state. We then store these
+  SAR 2     ; two numbers in DR 2 & 7
+  LAR 4
+  SAR 7
+;*********************************************************  
+  CLF
+  LDI 37    ; Jump over to a particular part of the code in accordance
+  LAD       ; to the nibble stored in ADR 37
+  COM
+  IAC 
+  NOP2
+  NOP2
+  NOP2
+  NOP2
+  JF NDSTJMP
+  LDI DSTJMP
+  XPD
+NDSTJMP:
+  IAC
+  JT L2JMP
+  IAC
+  JT L3JMP
+  IAC
+  JT L4JMP
+  LDI START
+  XPD
+DSTJMP:
+  LDI DST
+  XPD
+L2JMP:
+  LDI L2
+  XPD
+L3JMP:
+  LDI L3
+  XPD
+L4JMP:
+  LDI L4
+  XPD
+;*******************************************************
+;-------------------FRAGMENT PERTAINING TO SHOOT-------------------
+DST:
+  LDI 84  ; Writing 84 into ADR 6
+  SDR 6   ; Writing what is stored in ADR 0 (pattern table address)
+  LDR 0   ; into ADR 7
+  SDR 7
+
+  LDI TBTC ; Calling 12 bit two's compliment onto address 6 & 7 
+  XPD
+
+  LDI 30  
+  LAD
+;*************************************************************************
+; The point of this code is to check whether the function (12 bit two's com)
+; did in fact return a zero. 
+
+  JZ CHK7 ; CHK7 & CHK8 are fragments jumped to if (and only if) ADR 7 = 0
+  LDI NOTZ1
+  XPD 
+CHK7:
+  LDI 29 ; Least significant nibble of ADR 7
+  LAD
+  JZ CHK8
+  LDI NOTZ1
+  XPD
+;*************************************************************************
+CHK8:
+  LDI 200  ; We store 64 (Pattern Table Index) int ADR 0 and store the
+  SDR 0   ; head of the pattern table into ADR 5
+  SDR 5 
+  LDI OBTLC ; Call the obstacle generator routine and then return to the segment
+  XPD          ; of code where we are trying to determine what the key press  is.
+  LDI START
+  XPD
+
+NOTZ1:  
+  LDR 0
+  LAD    
+  SAR 0     ; Storing a nibble of the pattern table address into DR 0
+  
+  LDI 30
+  SDR 6     ; Storing a limit of 30 into ADR 6 
+
+  CLF
+  LDI FIRE   ; Calling the shoot routine
+  XPD
+  LDI 35    ; If we miss, 0 is stored into this "boolean" address but if we were
+  LAD       ; to successfully stike the target, 1 would be stored in this "boolean"
+  JZ RET1   ; address
+  JMP ISZERO1
+
+RET1:
+  LDI START ; This means that we missed and would like to return to the partition of
+  XPD       ; of the source code where we are waiting for the user to press a key into
+            ; the keypad
+ISZERO1:
+  LDR 0     ; Truncate pattern table and store the new head of the pattern table into
+  IDP       ; DR 0
+  LAD
+  SAR 0
+  SDR 0
+
+  LDI 37    ; We also store 1 into MEM[37]. At the start of the source code, we initialized
+  LAI 1     ; MEM[37] with the value. 
+  SAD
+
+  LDI START ; Return back to the segment of code where the source is waiting for the user
+  XPD       ; to press a key 
+
+L2:
+  LDI 45    ; Storing 45 in ADR 6 and the calling the SHOOT routine. Based on whether the
+  SDR 6     ; user was able to shoot down the block, a 0 or 1 value will be stored in the
+  CLF       ; boolean address MEM[35]. Recall thatif we were to miss, 0 would be stored into
+  LDI FIRE  ; MEM[35] but if we were able to make the shot, 1 would be stored into MEM[35]
+  XPD
+  LDI 35
+  LAD
+  JZ RET2
+  JMP ISZERO2
+
+RET2:
+  LDI START ; Return back to the segment of code where the source is waiting for the user
+  XPD       ; to press a key
+
+ISZERO2:
+  LDR 0     ; Truncate pattern table and store the new head of the pattern table into 
+  IDP       ; DR 0
+  LAD
+  SAR 0
+  SDR 0
+
+  LDI 37    ; Store a 2 into MEM[37]. When the code is first initialised, MEM[37] is initialised
+  LAI 2     ; to a value of zero
+  SAD
+  LDI START
+  XPD
+
+L3:
+  LDI 60  ; Storing 60 into ADR 6 and calling the shoot routine. Based on whether the user was able to
+  SDR 6   ; shoot down the block, a 0 or 1 will be stored in the boolean address MEM[35].
+  CLF
+  LDI FIRE
+  XPD
+  LDI 35
+  LAD
+  JZ RET3
+  JMP ISZERO3
+
+RET3:    ; If the user missed, return to the section of the codes where we are waiting for key entry 
+  LDI START
+  XPD
+
+ISZERO3: 
+  LDR 0
+  IDP
+  LAD
+  SAR 0
+  SDR 0
+  LDI 37
+  LAI 3
+  SAD
+  LDI START
+  XPD
+
+L4:
+  LDI 75  ; Storing 60 into ADR 6 and calling the shoot routine. Based on whether the user was able to
+  SDR 6   ; shoot down the block, a 0 or 1 will be stored in the boolean address MEM[35].
+  CLF
+  LDI FIRE
+  XPD
+  LDI 35
+  LAD
+  JZ RET4
+  JMP ISZERO4
+
+RET4:
+  LDI START
+  XPD
+
+ISZERO4:
+  LDR 0
+  IDP
+  LAD
+  SAR 0
+  SDR 0
+
+  LDI OBTLC ; We have shot down the last obstacle and wish to call the obstacle generator routine once more
+  XPD          ; and generate a new set of blocks to fire at. We make sure to reset what is stored in MEM[37] to 
+  LDI 37       ; zero and we return to the part of the source where we are awaiting user key entry
+  LAI 0
+  SAD
+  LDI START
+  XPD
+
+UP2:                       
+  LAI 5                     
+  SAR 3
+  LAR 5
+  SAR 4
+
+  LDI TWOSCOM ; Calling the 2's complement routine
+  XPD
+;-------------------------------------------------
+; Note that the reason why there are two segments whose
+; purpose is to jump back to the part of the code where
+; we await user key entry is because of memory page issues
+; encountered
+
+  LAR 4
+  JZ STRTJMP
+  JMP ISNOTZ
+STRTJMP:
+  LDI START
+  XPD 
+ISNOTZ:
+  LAR 5
+  IAC
+  SAR 5
+  LDI ADJUST
+  XPD
+STRT:
+  LDI START
+  XPD
+DOWN2:
+  LAR 5
+  COM
+  IAC
+  COM
+  JZ STRT
+  SAR 5
+;------------------------------------------------
+ADJUST:
+  LDI SWITCH  ; The SWITCH routine writes displays the pattern column corrresponding 
+  XPD         ; to the state of the user sprite. The SWITCH routine is similar to that of 
+  LDI START   ; of the WBGet routine except the WBGet routine does not display the column
+  XPD         ; for you. Rather it returns the MSN and LSN or the pattern column. 
+;*****************************************************
+;------------------DESCRIPTION------------------------
+; The following is source code is written
+; by Ekram Bhuiyan. The purpose of this routine
+; is to take the two's compliment of two nibbles.
+; This is the TWOSCOM routine 
+;-----------------------------------------------------
+;-------------REGISTER DOCUMENTATION------------------
+; Let D7 and D3 store the arguments of this 
+; routine. (i.e. nibble TWOSCOM(D3, D4), 
+; D3 > D4
+
+; The answer is stored in D4
+; Let the return address be stored in ADR 1
+;----------------------------------------------------
+;--------------INITIALIZE VARIABLES------------------
+TWOSCOM:
+  IDP
+  IDP
+  SDR 1
+  LAR 4
+  COM
+  ADR 3
+  IAC 
+  SAR 4
+  LDR 1
+  XPD
+;****************************************************
+;****************************************************
+;------------------DESCRIPTION-----------------------
+; The following is source code is written
+; by Ekram Bhuiyan. The purpose of this routine
+; is to return the MSN and LSN associated with a 
+; pattern column in accordance to whatever the state
+; is. This is the WBGet routine 
+;-------------------------------------------------------
+;---------------REGISTER DOCUMENTATION------------------
+; ADR 2 stores return address for the routine
+; Store MSN AND LSN (big endian) in D3 & D4 respectively
+;-------------------------------------------------------
+
+WBGET:
+  IDP
+  IDP
+  SDR 2 
+  
+  LAR 5
+  COM
+  CLF
+  IAC
+  JF ND30
+  LDI D30
+  XPD
+ND30:
+  IAC 
+  JF ND31
+  LDI D31
+  XPD
+ND31:
+  IAC 
+  NOP2
+  NOP2
+  NOP2
+  NOP2
+  NOP2
+  JF ND32
+  LDI D32
+  XPD
+ND32:
+  IAC
+  JT D33
+  IAC 
+  JT D34
+  IAC 
+  JT D35
+  IAC
+  JT D36
+
+D30: 
+  LDI D40
+  XPD
+D31:
+  LDI D41
+  XPD
+D32:
+  LDI D42
+  XPD
+D33:
+  LDI D43
+  XPD
+D34:
+  LDI D44
+  XPD
+D35:
+  LDI D45
+  XPD
+D36:
+  LDI D46
+  XPD 
+
+D40:     
+  LAI 0
+  SAR 3
+  LAI 1
+  SAR 4
+  LDI END1
+  XPD
+D41:
+  LAI 0
+  SAR 3
+  LAI 2              
+  SAR 4              
+  LDI END1           
+  XPD        
+D42:                  
+  LAI 0              
+  SAR 3              
+  LAI 4
+  SAR 4
+  LDI END1
+  XPD
+D43:    
+  LAI 0
+  SAR 3
+  LAI 8
+  SAR 4
+  LDI END1
+  XPD
+D44:    
+  LAI 1
+  SAR 3
+  LAI 0
+  SAR 4
+  LDI END1
+  XPD
+D45:    
+  LAI 2
+  SAR 3
+  LAI 0
+  SAR 4
+  LDI END1
+  XPD
+D46:    
+  LAI 4
+  SAR 3
+  LAI 0
+  SAR 5
+  LDI END1
+  XPD
+END1:
+  LDR 2
+  XPD
+;**************************************************
+;**************************************************
+;---------------------DESCRIPTION------------------
+; The following is source code is written
+; by Ekram Bhuiyan.Is to generate obstacles for the
+; user to shoot at. This routine contains a call to 
+; the WBGet routine, the TWOSCOM routine and the ADD15
+; routine. This is the Obstacle Generator routine.  
+;----------------REGISTER DOCUMENTATION------------
+; Let D1 and D2 store the MSN and LSN (static) of the
+; x coordinate respectivley (Big endian style)
+
+; Let D6 and D7 store the MSN and LSN (temp) of the x coordinate
+; respectivley (Big endian style)
+
+; Let D3 & D4 store the MSN and LSN of the getter respectivley (these 
+; are the argument registers)
+
+; Let ADR 3 store the return address
+
+; Let D0 store the state so as to refresh later
+
+; Let ADR 5 store the pattern table address (temp)
+;----------------------------------------------------
+;--------------INITIALIZING VARIABLES----------------  
+
+
+OBTLC:
+  IDP
+  IDP   ; Store the return address in address register 3
+  SDR 3
+
+  LAI 1
+  SAR 1 ; Store 0 in data register 0 (Index of column)
+  LAI 14; Store 15 in data register 2
+  SAR 2
+  
+  LAR 5 ; Store the state in data register 0 so
+  SAR 0 ; as to refresh the state (some routines
+        ; take D5 as their argument)   
+GENERATE:
+  CLF
+
+  LAR 1
+  SAR 6 ;(D6 stores a dynamic version of D1)
+
+  LAR 2 ;(D7 stores a dynamic version of D2)
+  SAR 7
+
+  LAR 6
+  LDI 4055
+  SAD      ; Store column address in 4055 & 4056
+  LAR 7    ; Stored (Big endian style)
+  LDI 4056
+  SAD
+
+  LAI 7
+  LDI 4057
+  SAD     ; Storing a filled column in 4057 & 4058
+  LAI 15
+  LDI 4058
+  SAD
+
+  LAR 7
+  IAC
+  SAR 7    
+  JT CARRY3
+  LDI CONTIN
+  XPD
+
+CARRY3:
+  LAR 6
+  IAC
+  SAR 6
+  CLF ; Clear offset register
+
+CONTIN:
+  LAR 6
+  LDI 4055
+  SAD ; Update column index
+  LAR 7
+  LDI 4056
+  SAD
+
+  LDR 5 ; Stores the address of the pattern table (Set in the main)
+  LAD
+  IDP 
+  SDR 5 ; Truncating the pointer by one position
+  SAR 5 ; Storing the nibble in data register 5 (i.e. PT[0])
+  
+  LDI WBGET
+  XPD       
+     
+  LAR 3
+  COM
+  LDI 4057
+  SAD
+            ; Therefore, if the nibble was 6, the column generated would 
+  LAR 4     ; look like     *-
+  COM       ;               **
+  LDI 4058  ;               **
+  SAD       ;               **   The wall's weakspot would be the uppermost row
+            ;               **
+            ;               **
+  LDI ADD15 ; Add 15 to the index(static)
+  XPD
+
+  LDI 42 ; A counter (initialized in the main source)
+  LAD
+
+  SAR 4       ; Store value in data register 4
+  LAI 3
+  SAR 3       ; Store 3 in data register 4
+  LDI TWOSCOM ; Subtracting the counter from 4 in order
+  XPD         ; to determine how many runs were executed
+  LAR 4
+  JZ X1  
+  LDI 42
+  LAD
+  IAC ; Update counter
+  SAD
+  LDI GENERATE ; Generate the next obstacle
+  XPD
+X1:
+  NOP2
+  NOP2
+  LDI 42
+  LAI 0 
+  SAD    ; Refresh counter
+  LAR 0  ; Refresh state
+  SAR 5
+  LDR 3
+  XPD   ; End function call
+
+;************************************************
+;----------------DESCRIPTION---------------------
+; The purpose of this routine is to add 15 to 
+; whatever is stored in [0000, DR1, DR2]. This
+; routine was written by Ekram Bhuiyan.
+;-------------------------------------------------
+;---------------REGISTER DOCUMENTATION------------
+; ADR 4 stores the return address of the routine
+; DR 1 and DR 2 store arguments which have 15 added
+; to them
+ADD15:
+  IDP
+  IDP  ; Storing the return address in ADR 4
+  SDR 4
+  
+  LAR 1
+  IAC
+  SAR 1
+
+  LAR 2
+  COM
+  IAC ; Decrement
+  COM
+  SAR 2
+
+  LDR 4
+  XPD
+ ;---------------------------------------------------
+;****************************************************
+;****************************************************
+;----------------DESCRIPTION------------------------
+; The following routine was written by Zbigniew Stackniak.
+; The code computes two's compliment between address
+; registers ADR 6 & ADR7. This routine is the Twelve
+; bit two's compliment routine
+;-------------REGISTER DOCUMENTATION----------------
+; Let ADR 4 store the return address of the following
+; routine
+
+; Let ADR 6 and ADR 7 store the arguments which we wish to 
+; to increment.
+; the answer is stored in ADR 7, ADR 7 < ADR 6
+;----------------------------------------------------             
+TBTC:
+  IDP 
+  IDP
+  SDR 4
+
+; compute two's complement of AR7
+; 1. flip all the bits of nibbles in AR7:
+  LDI 29
+  LAD
+  COM
+  SAD  ; 1st nibble complemented
+  LDI 30
+  LAD
+  COM
+  SAD  ; 2nd nibble complemented
+  LDI 31
+  LAD
+  COM
+  SAD  ; 3rd nibble complemented
+
+; 2. add 1 to AR7
+  LDR 7   ; DP <- AR7
+  IDP     ; DP++
+  SDR 7
+;
+; Now, add AR6 and AR7 and store the result in AR7
+CONT: LDI 29
+      LAD      ; AC=1st nibble of AR7
+      CLF
+      LDI 25
+      ADD      ; AC=1st nibble of AR7 + 1st nibble of AR6
+      LDI 29
+      SAD      ; 1st nibbles added and stored in mem[29]
+; add 2nd nibbles
+      LDI 30
+      LAD
+      JF CONT1 ; no carry
+      CLF
+      IAC      ; carry added (this can still produce carry)
+CONT1: LDI 26
+       JF  CONT2  ; OF=0, no carry
+; carry to 3rd nibbles exist, add it to 3rd nibble of AR7
+       LDI 31
+       LAD
+       IAC
+       SAD
+
+CONT2: LDI 26
+       CLF
+       ADD     ; AC=2nd nibble of AR7 + 2nd nibble of AR6
+       LDI 30
+       SAD     ; 2nd nibbles added and stored in mem[30]
+; add 3rd nibbles
+       LDI 31
+       LAD
+       JF CONT3  ; OF=0, continie
+       IAC       ; OF=1, so AC++
+CONT3: LDI 27
+       ADD
+       LDI 31
+       SAD
+
+  LDR 4
+  XPD
+;*****************************************************
+;*****************************************************
+;-----------------DESCRIPTION-------------------------
+; The following routine is the SWITCH routine. The
+; purpose of this routine is display the a column
+; on to the display in accordance to a state value.
+; This code was written by Ekram Bhuiyan.
+;------------REGISTER DOCUMENTATION-------------------
+; ADR 2 stores return address
+;-----------------------------------------------------
+SWITCH:
+  IDP
+  IDP
+  SDR 2
+
+  LDI 4055
+  LAI 0
+  SAD
+  LDI 4056
+  LAI 0
+  SAD
+  
+  LAR 5
+  COM
+  CLF
+  IAC
+  JF PJ1 
+  LDI D0
+  XPD  ; The purpose of the PJx jumps is to resolve an issue with jumping with pages
+PJ1:
+  IAC 
+  JF PJ2
+  LDI D1
+  XPD
+PJ2:
+  IAC
+  JF PJ3
+  LDI D2
+  XPD
+PJ3:
+  IAC
+  JF PJ4
+  LDI D3
+  XPD
+PJ4:
+  IAC 
+  JF PJ7 
+  LDI D4
+  XPD
+PJ7:
+  IAC 
+  JF PJ8
+  LDI D5
+  XPD
+PJ8:
+  LDI D6
+  XPD
+D0: 
+  LDI D20
+  XPD
+D1:
+  LDI D21
+  XPD
+D2:
+  LDI D22
+  XPD
+D3:
+  LDI D23
+  XPD
+D4:
+  LDI D24
+  XPD
+D5:
+  LDI D25
+  XPD
+D6:
+  LDI D26
+  XPD 
+
+D20: 
+  LDI 4057    
+  LAI 0
+  SAD
+  LDI 4058
+  LAI 1
+  SAD
+  LDI END2
+  XPD
+D21:
+  LDI 4057    
+  LAI 0
+  SAD
+  LDI 4058
+  LAI 2
+  SAD
+  LDI END2
+  XPD
+D22:
+  LDI 4057    
+  LAI 0
+  SAD
+  LDI 4058
+  LAI 4
+  SAD
+  LDI END2
+  XPD
+D23:
+  LDI 4057    
+  LAI 0
+  SAD
+  LDI 4058
+  LAI 8
+  SAD
+  LDI END2
+  XPD
+D24:
+  LDI 4057    
+  LAI 1
+  SAD
+  LDI 4058
+  LAI 0
+  SAD
+  LDI END2
+  XPD
+D25:
+  LDI 4057    
+  LAI 2
+  SAD
+  LDI 4058
+  LAI 0
+  SAD
+  LDI END2
+  XPD
+D26:
+  LDI 4057    
+  LAI 4
+  SAD
+  LDI 4058
+  LAI 0
+  SAD
+  LDI END2
+  XPD
+
+END2:
+  LDR 2
+  XPD
+;*************************************************
+;*************************************************
+;--------------DESCRIPTION---------------------
+; The following routine is so as to enable a laser
+; shot from the user sprite. This routine makes use
+; of the twelve bit two's compliment routine, the 
+; TWOSCOM routine, Erase Routine, Erase Obstacle
+; routine. The routine was written by Ekram Bhuiyan
+;------------REGISTER DOCUMENTATION------------
+; ADR 2 stores the return address of the SHOOT 
+; routine
+
+; ADR 3 stores the return address of the Refresh 
+; routine
+
+; D5 and D6 store the MSN and LSN of the state
+; This is because D3 and D4 store the MSN and LSN
+; of the user
+; We assume ADR 6 has been set prior to the routine
+; call
+
+; We assume the state has been stored in DR 5
+
+; ADR 6 must not be changed within this routine
+
+;---------------------------------------------
+FIRE:
+  IDP
+  IDP   ; Storing the return address
+  SDR 2
+  
+  CLF
+  LDI 33
+  LAI 0
+  SAD    
+  LAI 2  ;Initializing the x coordinate to 2
+  LDI 34
+  SAD
+
+CHECK:
+  LDI 32
+  LAD
+  LDI 31  
+  SAD
+  LDI 33
+  LAD
+  LDI 30
+  SAD
+  LDI 34
+  LAD
+  LDI 29
+  SAD
+  
+  LDI TBTC
+  XPD    ;Calling the 12 bit 2's compliment routine
+  
+  LDI 30 ; Median nibble of ADR 7
+  LAD
+  JZ CHK1 ; CHK1 & CHK2 are fragments jumped to if (and only if) ADR 7 = 0
+  
+  LDI PAT1 
+  XPD
+CHK1:
+  LDI 29 ; Least significant nibble of ADR 7
+  LAD
+  JZ CHK2
+  
+  LDI PAT1
+  XPD
+CHK2:
+  LAR 0
+  SAR 3
+  LAR 5 ; Compare state to nibble
+  SAR 4
+  
+  LDI TWOSCOM ; Calling the 4 bit 2's compliment
+  XPD
+  LAR 4
+  JZ ERASE
+  LDI RESTART
+  XPD
+
+ERASE:
+  LDI ERASEOB
+  XPD   
+  LDI ERASERO ; Erase Shot
+  XPD
+  
+  LDI 35
+  LAI 1 ; Store the a false value in mem[35]
+  SAD
+  
+  LDI R2   ; Refresh and jump out
+  XPD
+
+RESTART:
+  LDI ERASERO ; Erase shot
+  XPD
+  
+  LDI 35
+  LAI 0 ; Store the true value in mem[35]
+  SAD
+
+  LDI R2
+  XPD 
+
+PAT1:
+  CLF
+  LDI 33
+  LAD
+  LDI 4055
+  SAD
+
+  LDI 34
+  LAD 
+  LDI 4056
+  SAD
+
+  LDI 4057
+  LAR 2 
+  SAD
+  
+  LDI 4058
+  LAR 7
+  SAD
+
+  LDI 34
+  LAD         
+  IAC 
+  SAD
+  
+  JT CARRY1
+  LDI CHECK 
+  XPD
+
+CARRY1:
+  CLF 
+
+  LDI 33
+  LAD
+  IAC
+  SAD 
+  LDI CHECK
+  XPD
+R2:
+  LDI REFRESH
+  XPD
+  LDR 2
+  XPD
+
+ERASEOB:
+  IDP
+  IDP
+  SDR 3
+  LDI 26
+  LAD
+  LDI 4055 ; Storing the median nibble in Address 4055
+  SAD
+  
+  LDI 25
+  LAD
+  LDI 4056 ; Storing the LSN in Address 4056
+  SAD  
+
+  LAI 0
+  LDI 4057
+  SAD
+  LDI 4058 ; zero out the column in the Display
+  SAD 
+
+  CLF ; Clear offset register
+  LDI 25
+  LAD
+  IAC
+  SAD
+  JT CARRY2
+  JMP CONT4
+CARRY2:
+  LDI 26
+  LAD
+  IAC
+  SAD
+CONT4:
+  LDI 26
+  LAD
+  LDI 4055 ; Storing the median nibble in Address 4055
+  SAD
+
+  LDI 25
+  LAD
+  LDI 4056 ; Storing the LSN in Address 4065
+  SAD  
+
+  LAI 0
+  LDI 4057
+  SAD
+   
+  LDI 4058 ; zero out the column in the Display
+  SAD                                              
+  LDR 3
+  XPD
+
+ERASERO:
+  IDP
+  IDP
+  SDR 1
+
+  LDI 33
+  LAI 0
+  SAD    
+  LAI 2  
+  LDI 34
+  SAD
+
+PAT2:
+
+  CLF
+
+  LDI 33
+  LAD
+  LDI 4055
+  SAD
+
+  LDI 34
+  LAD
+  LDI 4056
+  SAD
+
+  LAI 0
+  LDI 4057 
+  SAD
+
+  LDI 4058
+  SAD
+
+  LDI 34
+  LAD         
+  IAC 
+  SAD
+  JT CARRY4   
+  LDI 32
+  LAD
+  LDI 31  
+  SAD
+  LDI 33
+  LAD
+  LDI 30
+  SAD
+  LDI 34
+  LAD
+  LDI 29
+  SAD
+  LDI TBTC
+  XPD
+  CLF
+  LDI 30 
+  LAD
+  JN PJ5 ; CHK3 & CHK4 are fragments jumped to if (and only if) ADR 7 = 0
+  LDI CHK3
+  XPD   
+PJ5:
+  LDI PAT2
+  XPD
+
+CARRY4: 
+  LDI 33
+  LAD
+  IAC
+  SAD
+ 
+  LDI 32
+  LAD
+  LDI 31  
+  SAD
+  LDI 33
+  LAD
+  LDI 30
+  SAD
+  LDI 34
+  LAD
+  LDI 29
+  SAD 
+  LDI TBTC
+  XPD
+  
+  LDI 30 
+  LAD
+  JZ CHK3 ; CHK3 & CHK4 are fragments jumped to if (and only if) ADR 7 = 0
+  
+  LDI PAT2
+  XPD
+
+CHK3:
+  LDI 29 ; Least significant nibble of ADR 7
+  LAD
+  JZ CHK4
+  
+  LDI PAT2
+  XPD
+
+CHK4:
+  LDR 1
+  XPD
+;*************************************************
+;-----------------DESCRIPTION---------------------------
+; The following routine supplements the shoot routine in that
+; it resets the x coordinate of the pixel shot. This routine
+; was written by Ekram Bhuiyan
+;-------------------------------------------------------
+;----------------REGISTER DOCUMENTAION------------------
+; The return address is ADR 3
+;-------------------------------------------------------
+
+REFRESH: 
+  IDP
+  IDP
+  SDR 3
+ 
+  LDI 33
+  LAI 0
+  SAD  ; Reset x coordinate to 2
+  LDI 34
+  LAI 2
+  SAD
+
+
+  LDR 3
+  XPD
+;*************************************************
+;---------------DESCRIPTION------------------------
+; The following routine was written by Zbigniew Stackniak.
+; This routine is a psuedo random number generator. He 
+; is implementing a linear feedback shift register. Such
+; a register's input bit is a linear function of its 
+; previous state
+;--------------------------------------------------
+;---------REGISTER DOCUMENTATION------------------
+; ADR 4 is the return address register
+; ADR 6 is used for temp storage
+; D7 stores a return value
+; D5 and D6 are temp storage registers
+;-------------------------------------------------
+RNG:
+  JMP RAN4 ; this jump is needed for tables below to start at addresses xxxx xxxx 0000
+;
+TAB1:
+  DEFN 0,13,10,7,4,9,14,3,8,5,2,15,12,1,6,11
+;
+TAB2:
+  DEFN 0,2,5,7,11,9,14,12,6,4,3,1,13,15,8,10
+;
+RAN4:
+ IDP
+ IDP
+ SDR  4                    ; store return address in addr register 7
+;
+; get msn of SEED and compute DR7 = TAB1[msn of seed]
+  LDI SEED
+  LAD                      ;  AC=msn of seed
+;
+;   to get to AC-th value in TAB1, one only needs to replace the lsn
+;   (initially 0 by the choice of TAB1 address 64) with AC value
+  LDI TAB1
+  SDR 6                    ; TAB1 address stored in AR6
+  LDI 25                   ; this is where lsn of AR6 is
+  SAD                      ; AC -> lsn of AR6
+  LDR 6                    ; AR6 -> DP this is the address of table1[msn of seed]
+  LAD                      ; AC <- table1[msn of seed]
+  SAR 7                    ; DR7=table1[msn of seed]
+; compute D7=D7 ^ tab2[2nd msn of seed]
+    ; first, get 2nd msn of SEED and move TAB2[2nd msn of seed] to AC
+  LDI SEED
+  IDP
+  LAD                      ;  AC=2nd msn of seed
+  LDI TAB2
+  SDR 6                    ; TAB2 address stored in AR6
+  LDI 25                   ; this is where lsn of AR6 is
+  SAD                      ; AC -> lsn of AR6
+  LDR 6                    ; DP <- AR6 -- this is the address of table2[2nd msn of seed]
+  LAD                      ; AC <- table1[2nd msn of seed]
+; finally, we need exclusive OR of AC and DR7 : N(N(AC,N(AC,DR7)),N(DR7,N(AC,DR7))), where N is NAND
+  SAR 6                    ; AC -> DR6, where AC=table1[2nd msn of seed]
+  NAR 7                    ; AC=N(AC,DR7)
+  SAR 5                    ; N(AC,DR7) -> DR5
+  LAR 6                    ; the original value of AC restored
+  NAR 5                    ; AC=N(AC,N(AC,DR7))
+  SAR 6                    ; N(AC,N(AC,DR7)) saved in DR6
+; compute second argument N(DR7,N(AC,DR7))
+  LAR 7                    ; AC <- DR7
+  NAR 5                    ; AC <- N(DR7,N(AC,DR7))
+; compute the final NAND
+  NAR 6                    ; done: AC is the XOR of =D7 and tab2[2nd msn of seed]
+  SAR 7                    ;     LAR 0  and saved in DR7
+; Next, look at  (SEED >> 7) & 1 which is the ms bit of 3rd nibble of seed;
+;  if it is 1: DR7=DR7 XOR 1 which means flip the last bit of DR7
+  LDI SEED
+  IDP
+  IDP        ; get to the 3rd nibble of seed and look at ms bit
+  LAD
+  CLF        ; clear OF
+  RAL        ; rotate left, so the bit in question is in OF
+; if OF=0, then do nothing
+  JT PJ6   ; do nothing is OF=0
+  LDI CRNG2
+  XPD
+; OF=1, so flip the last bit of DR7
+PJ6:  LAR 7                    ; AC <-DR7
+  RAR                      ; rotate AC right
+  JF CRNG3                 ; if OF=0, then deal with this below
+; OF=1 so make it 0
+  CLF                      ; OF was 1 so make it 0
+  JMP CRNG4
+;
+CRNG3: STF                 ; OF was 0, so make it 1
+CRNG4:
+  RAL                      ; rotate left to get the flipped bit at 0th position
+  SAR 7                    ; save the output value in DR7
+; finally, modify the seed
+CRNG2:
+; SEED <<= 4   -- left shift SEED by 4 bits
+  LDI SEED
+  IDP
+  LAD
+  DDP
+  SAD                      ; mem[seed] <- mem[seed+1]
+  IDP
+  IDP                      ; DP=seed+2
+  LAD
+  DDP
+  SAD                      ; mem[seed+1] <- mem[seed+2]
+  IDP
+  IDP                      ; DP=seed+3
+  LAD
+  DDP
+  SAD                      ; mem[seed+2] <- mem[seed+3]
+; replace the last nibble of seed with DR7
+  IDP                      ; DP=seed+3
+  LAR7
+  SAD                      ; mem[seed+3]=DR7
+;
+; return to caller
+  LDR 4
+  XPD
+;
+SEED:
+  DEFN  10,12,14,1                ; seed value 0xACE1, msn first and lsn last
+;
+;-------------------------------------------
+;*******************************************
+;********************************************
+;---------------DESCRIPTION------------------
+;What you want to do is to select at random a 
+;number stored in a table of size 50. It seems 
+;to me that this is the same as simply asking 
+;for a random number between 1 and 5 as many times
+;as needed. If so, here is a code to generate such a 
+;number at random and to store it in AC:
+;--------------------------------------------
+;------------REGISTER DOCUMENTATION------------
+; Let ADR 0 store the return address of the routine
+; Let DR 0 be used in this routine to work with the 
+; accumulator
+;-------------------------------------------------
+RGENER:
+  IDP
+  IDP  
+  SDR 1  
+  LDI RNG
+  XPD          ; call random nr generator
+  LAR 7        ; AC=DR7, note that random nr gen. returns numbers in data reg. 7
+; at this moment, AC has a number between 0 and 15
+; the top 2 bits constitute a random nr between 0 and 3; get this number
+  CLFRR
+  CLFRR        ; AC has a number between 0 and 3
+  IAC          ; AC has a number between 1 and 4
+; to get a number between 1 and 5, let us add OF to AC
+  SAR 7        ; store AC in DR7
+  CLARL        ; AC=OF
+  ADR 7        ; AC contains a number between 1 and 5
+  LDR 1
+  XPD
+;
+
+
+
+ 
+  
+
+  
